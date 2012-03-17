@@ -319,7 +319,7 @@ int mx_is_imap(const char *p)
     return 1;
 
   scheme = url_check_scheme (p);
-  if (scheme == U_IMAP || scheme == U_IMAPS)
+  if (scheme == U_IMAP || scheme == U_IMAPS || scheme == U_GMAIL)
     return 1;
 
   return 0;

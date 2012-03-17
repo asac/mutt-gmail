@@ -200,8 +200,11 @@ int imap_parse_path (const char* path, IMAP_MBOX* mx)
 
   c = safe_strdup (path);
   url_parse_ciss (&url, c);
-  if (url.scheme == U_IMAP || url.scheme == U_IMAPS)
+  if (url.scheme == U_IMAP || url.scheme == U_IMAPS || url.scheme == U_GMAIL)
   {
+    if (url.scheme == U_GMAIL)
+      mx->account.type = M_ACCT_TYPE_IMAP_GMAIL;
+
     if (mutt_account_fromurl (&mx->account, &url) < 0 || !*mx->account.host)
     {
       FREE (&c);
@@ -210,7 +213,7 @@ int imap_parse_path (const char* path, IMAP_MBOX* mx)
 
     mx->mbox = safe_strdup (url.path);
 
-    if (url.scheme == U_IMAPS)
+    if (url.scheme == U_IMAPS || url.scheme == U_GMAIL)
       mx->account.flags |= M_ACCT_SSL;
 
     FREE (&c);
@@ -748,7 +751,7 @@ void imap_keepalive (void)
   conn = mutt_socket_head ();
   while (conn)
   {
-    if (conn->account.type == M_ACCT_TYPE_IMAP)
+    if (conn->account.type == M_ACCT_TYPE_IMAP || conn->account.type == M_ACCT_TYPE_IMAP_GMAIL)
     {
       int need_free = 0;
 

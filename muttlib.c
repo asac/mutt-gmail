@@ -817,7 +817,7 @@ void mutt_pretty_mailbox (char *s, size_t buflen)
   scheme = url_check_scheme (s);
 
 #ifdef USE_IMAP
-  if (scheme == U_IMAP || scheme == U_IMAPS)
+  if (scheme == U_IMAP || scheme == U_IMAPS || scheme == U_GMAIL)
   {
     imap_pretty_mailbox (s);
     return;

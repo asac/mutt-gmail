@@ -11,6 +11,7 @@ typedef enum url_scheme
   U_SMTP,
   U_SMTPS,
   U_MAILTO,
+  U_GMAIL, 
   U_UNKNOWN
 }
 url_scheme_t;

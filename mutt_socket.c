@@ -442,7 +442,8 @@ int raw_socket_open (CONNECTION* conn)
   int fd;
 
   char *host_idna = NULL;
-  
+  char *host = NULL;
+
 #ifdef HAVE_GETADDRINFO
 /* --- IPv4/6 --- */
 
@@ -463,15 +464,22 @@ int raw_socket_open (CONNECTION* conn)
   hints.ai_socktype = SOCK_STREAM;
 
   snprintf (port, sizeof (port), "%d", conn->account.port);
-  
+
+  host = conn->account.host;
+
+# ifdef USE_IMAP
+  if (conn->account.type = M_ACCT_TYPE_IMAP_GMAIL)
+    host = "imap.gmail.com";
+# endif
+
 # ifdef HAVE_LIBIDN
-  if (idna_to_ascii_lz (conn->account.host, &host_idna, 1) != IDNA_SUCCESS)
+  if (idna_to_ascii_lz (host, &host_idna, 1) != IDNA_SUCCESS)
   {
     mutt_error (_("Bad IDN \"%s\"."), conn->account.host);
     return -1;
   }
 # else
-  host_idna = conn->account.host;
+  host_idna = host;
 # endif
 
   if (!option(OPTNOCURSES))
