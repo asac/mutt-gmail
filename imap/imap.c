@@ -185,7 +185,8 @@ void imap_logout_all (void)
   {
     tmp = conn->next;
 
-    if (conn->account.type == M_ACCT_TYPE_IMAP && conn->fd >= 0)
+    if ((conn->account.type == M_ACCT_TYPE_IMAP ||
+         conn->account.type == M_ACCT_TYPE_IMAP_GMAIL) && conn->fd >= 0)
     {
       mutt_message (_("Closing connection to %s..."), conn->account.host);
       imap_logout ((IMAP_DATA**) (void*) &conn->data);
@@ -1906,7 +1907,8 @@ imap_complete_hosts (char *dest, size_t len)
     ciss_url_t url;
     char urlstr[LONG_STRING];
 
-    if (conn->account.type != M_ACCT_TYPE_IMAP)
+    if (conn->account.type != M_ACCT_TYPE_IMAP &&
+        conn->account.type != M_ACCT_TYPE_IMAP_GMAIL)
       continue;
 
     mutt_account_tourl (&conn->account, &url);

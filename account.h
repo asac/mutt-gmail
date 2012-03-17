@@ -29,15 +29,17 @@ enum
   M_ACCT_TYPE_NONE = 0,
   M_ACCT_TYPE_IMAP,
   M_ACCT_TYPE_POP,
-  M_ACCT_TYPE_SMTP
+  M_ACCT_TYPE_SMTP,
+  M_ACCT_TYPE_IMAP_GMAIL
 };
 
 /* account flags */
-#define M_ACCT_PORT  (1<<0)
-#define M_ACCT_USER  (1<<1)
-#define M_ACCT_LOGIN (1<<2)
-#define M_ACCT_PASS  (1<<3)
-#define M_ACCT_SSL   (1<<4)
+#define M_ACCT_PORT       (1<<0)
+#define M_ACCT_USER       (1<<1)
+#define M_ACCT_LOGIN      (1<<2)
+#define M_ACCT_PASS       (1<<3)
+#define M_ACCT_SSL        (1<<4)
+#define M_ACCT_GMAIL_USER (1<<5)
 
 typedef struct
 {
@@ -48,6 +50,8 @@ typedef struct
   unsigned short port;
   unsigned char type;
   unsigned char flags;
+  /* special gmail user user + host + |@| */
+  char gmail_user[64+128+1];
 } ACCOUNT;
 
 int mutt_account_match (const ACCOUNT* a1, const ACCOUNT* m2);

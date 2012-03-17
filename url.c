@@ -42,6 +42,7 @@ static const struct mapping_t UrlMap[] =
   { "mailto",	U_MAILTO },
   { "smtp",     U_SMTP },
   { "smtps",    U_SMTPS },
+  { "gmail", 	U_GMAIL },
   { NULL,	U_UNKNOWN }
 };
 
