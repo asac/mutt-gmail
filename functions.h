@@ -107,7 +107,7 @@ const struct binding_t OpMain[] = { /* map: index */
   { "fetch-mail",		OP_MAIN_FETCH_MAIL,		"G" },
 #endif
 #ifdef USE_IMAP
-  { "imap-fetch-mail",		OP_MAIN_IMAP_FETCH,		NULL },
+  { "imap-fetch-mail",		OP_MAIN_IMAP_FETCH,		"G" },
   { "imap-logout-all",		OP_MAIN_IMAP_LOGOUT_ALL,	NULL },
 #endif
   { "display-toggle-weed",		OP_DISPLAY_HEADERS,		"h" },
