@@ -468,7 +468,7 @@ int raw_socket_open (CONNECTION* conn)
   host = conn->account.host;
 
 # ifdef USE_IMAP
-  if (conn->account.type = M_ACCT_TYPE_IMAP_GMAIL)
+  if (conn->account.type == M_ACCT_TYPE_IMAP_GMAIL)
     host = "imap.gmail.com";
 # endif
 
