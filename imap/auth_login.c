@@ -29,7 +29,7 @@
 /* imap_auth_login: Plain LOGIN support */
 imap_auth_res_t imap_auth_login (IMAP_DATA* idata, const char* method)
 {
-  char q_user[SHORT_STRING], q_pass[SHORT_STRING];
+  char q_login[STRING], q_pass[SHORT_STRING];
   char buf[STRING];
   int rc;
 
@@ -39,14 +39,14 @@ imap_auth_res_t imap_auth_login (IMAP_DATA* idata, const char* method)
     return IMAP_AUTH_UNAVAIL;
   }
 
-  if (mutt_account_getuser (&idata->conn->account))
+  if (mutt_account_getlogin (&idata->conn->account))
     return IMAP_AUTH_FAILURE;
   if (mutt_account_getpass (&idata->conn->account))
     return IMAP_AUTH_FAILURE;
 
   mutt_message _("Logging in...");
 
-  imap_quote_string (q_user, sizeof (q_user), idata->conn->account.user);
+  imap_quote_string (q_login, sizeof (q_login), idata->conn->account.login);
   imap_quote_string (q_pass, sizeof (q_pass), idata->conn->account.pass);
 
 #ifdef DEBUG
@@ -58,7 +58,7 @@ imap_auth_res_t imap_auth_login (IMAP_DATA* idata, const char* method)
       idata->conn->account.user));
 #endif
 
-  snprintf (buf, sizeof (buf), "LOGIN %s %s", q_user, q_pass);
+  snprintf (buf, sizeof (buf), "LOGIN %s %s", q_login, q_pass);
   rc = imap_exec (idata, buf, IMAP_CMD_FAIL_OK | IMAP_CMD_PASS);
   
   if (!rc)
