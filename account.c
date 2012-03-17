@@ -225,9 +225,8 @@ int mutt_account_getlogin (ACCOUNT* account)
   {
     mutt_account_getuser (account);
     strfcpy (account->login, account->user, sizeof (account->login));
+    account->flags |= M_ACCT_LOGIN;
   }
-
-  account->flags |= M_ACCT_LOGIN;
 
   return 0;
 }
