@@ -228,7 +228,7 @@ int mutt_account_getlogin (ACCOUNT* account)
     account->flags |= M_ACCT_LOGIN;
   }
 
-  return 0;
+  return !(account->flags & M_ACCT_LOGIN);
 }
 
 /* mutt_account_getpass: fetch password into ACCOUNT, if necessary */
