@@ -39,7 +39,6 @@ enum
 #define M_ACCT_LOGIN      (1<<2)
 #define M_ACCT_PASS       (1<<3)
 #define M_ACCT_SSL        (1<<4)
-#define M_ACCT_GMAIL_USER (1<<5)
 
 typedef struct
 {
@@ -50,8 +49,6 @@ typedef struct
   unsigned short port;
   unsigned char type;
   unsigned char flags;
-  /* special gmail user user + host + |@| */
-  char gmail_user[64+128+1];
 } ACCOUNT;
 
 int mutt_account_match (const ACCOUNT* a1, const ACCOUNT* m2);

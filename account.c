@@ -51,14 +51,6 @@ int mutt_account_match (const ACCOUNT* a1, const ACCOUNT* a2)
     user = PopUser;
 #endif
 
-  /* both need to be gmail accounts and need matching gmail_user */
-  if (a1->flags & a2->flags & M_ACCT_GMAIL_USER)
-    return (!strcmp (a1->gmail_user, a2->gmail_user));
-  else if (a1->flags & M_ACCT_GMAIL_USER)
-    return 0;
-  else if (a2->flags & M_ACCT_GMAIL_USER)
-    return 0;
-
   if (a1->flags & a2->flags & M_ACCT_USER)
     return (!strcmp (a1->user, a2->user));
   if (a1->flags & M_ACCT_USER)
@@ -73,27 +65,39 @@ int mutt_account_match (const ACCOUNT* a1, const ACCOUNT* a2)
 int mutt_account_fromurl (ACCOUNT* account, ciss_url_t* url)
 {
   /* must be present */
-  if (url->host)
-    strfcpy (account->host, url->host, sizeof (account->host));
-  else
+  if (!url->host)
     return -1;
 
-  if (url->user)
+  if(account->type != M_ACCT_TYPE_IMAP_GMAIL)
   {
-    strfcpy (account->user, url->user, sizeof (account->user));
+    strfcpy (account->host, url->host, sizeof (account->host));
+
+    if (url->user)
+    {
+      strfcpy (account->user, url->user, sizeof (account->user));
+      account->flags |= M_ACCT_USER;
+    }
+  }
+  else
+  {
+    /* gmail is fun: no username makes the host the username with login=<host>@gmail.com */
+    if (url->user)
+    {
+      snprintf(account->login, sizeof (account->login), "%s@%s", url->user, url->host);
+      snprintf(account->user, sizeof (account->user), "%s", url->user);
+    }
+    else
+    {    
+      snprintf(account->login, sizeof (account->login), "%s", url->host);
+      snprintf(account->user, sizeof (account->user), "%s", url->host);
+    }
+
+    strfcpy (account->host, "imap.gmail.com", sizeof (account->host));
+
+    account->flags |= M_ACCT_LOGIN;
     account->flags |= M_ACCT_USER;
   }
-  if (url->host && account->type == M_ACCT_TYPE_IMAP_GMAIL)
-  {
-    /* gmail is fun: no username makes the host the username with <host>@gmail.com for login */
-    if (url->user)
-      snprintf(account->gmail_user, sizeof (account->gmail_user), "%s@%s", url->user, url->host);
-    else
-    {
-      snprintf(account->gmail_user, sizeof (account->gmail_user), "%s@gmail.com", url->host);
-    }
-    account->flags |= M_ACCT_GMAIL_USER;
-  }
+
   if (url->pass)
   {
     strfcpy (account->pass, url->pass, sizeof (account->pass));
@@ -104,7 +108,7 @@ int mutt_account_fromurl (ACCOUNT* account, ciss_url_t* url)
     account->port = url->port;
     account->flags |= M_ACCT_PORT;
   }
-
+   
   return 0;
 }
 
@@ -127,8 +131,6 @@ void mutt_account_tourl (ACCOUNT* account, ciss_url_t* url)
     else
       url->scheme = U_IMAP;
   }
-  if (account->type == M_ACCT_TYPE_IMAP_GMAIL)
-    url->scheme = U_GMAIL;
 #endif
 
 #ifdef USE_POP
@@ -159,12 +161,24 @@ void mutt_account_tourl (ACCOUNT* account, ciss_url_t* url)
   if (account->flags & M_ACCT_PASS)
     url->pass = account->pass;
 
-  /*
-   * asac: gmail_user does not need to be encoded because
-   * urls can be fully described through the none-gmail
-   * fields AND we preserve those fields as normal parser
-   * sees them.
-   */
+  /* gmail:// short url form is fun; we redo user host from login */
+  if (account->type == M_ACCT_TYPE_IMAP_GMAIL)
+  {
+    char *s;
+    url->scheme = U_GMAIL;
+    url->host = account->user;
+    if (s = strrchr(account->login, '@'))
+    {
+      /* if login is a full gapps domain, we use the @ split for user and host */
+      url->host = s + 1;
+      url->user = account->user;
+    }
+    else
+    {
+      /* gmail url without domain url-parsed as host */
+      url->user = NULL;
+    }
+  }
 }
 
 /* mutt_account_getuser: retrieve username into ACCOUNT, if necessary */
@@ -174,7 +188,7 @@ int mutt_account_getuser (ACCOUNT* account)
 
   /* already set
    * asac: gmail_user should must force-fill user preserving urltostring */
-  if (account->flags & (M_ACCT_USER | M_ACCT_GMAIL_USER))
+  if (account->flags & M_ACCT_USER)
     return 0;
 #ifdef USE_IMAP
   else if ((account->type == M_ACCT_TYPE_IMAP) && ImapUser)
@@ -213,11 +227,6 @@ int mutt_account_getlogin (ACCOUNT* account)
       strfcpy (account->login, ImapLogin, sizeof (account->login));
       account->flags |= M_ACCT_LOGIN;
     }
-  }
-  else if (account->type == M_ACCT_TYPE_IMAP_GMAIL)
-  {
-    strfcpy (account->login, account->gmail_user, sizeof (account->login));
-    account->flags |= M_ACCT_LOGIN;
   }
 #endif
 
