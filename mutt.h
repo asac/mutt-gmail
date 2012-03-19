@@ -881,6 +881,7 @@ typedef struct _context
   int msgnotreadyet;		/* which msg "new" in pager, -1 if none */
 
   short magic;			/* mailbox type */
+  short sub_magic;		/* mailbox subtype magic (e.g. gmail <- imap) */
 
   unsigned char rights[(RIGHTSMAX + 7)/8];	/* ACL bits */
 

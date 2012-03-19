@@ -819,6 +819,7 @@ int mutt_save_message (HEADER *h, int delete,
   if (Context->magic == M_IMAP && 
       !(decode || decrypt) && mx_is_imap (buf))
   {
+    imap_sync_messages_flags (Context, h, IMAP_MESSAGE_SYNC_DELETED_FLAG_DEFER);
     switch (imap_copy_messages (Context, h, buf, delete))
     {
       /* success */

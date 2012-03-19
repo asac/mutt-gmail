@@ -239,7 +239,7 @@ int imap_read_literal (FILE* fp, IMAP_DATA* idata, long bytes, progress_t*);
 void imap_expunge_mailbox (IMAP_DATA* idata);
 void imap_logout (IMAP_DATA** idata);
 int imap_sync_message (IMAP_DATA *idata, HEADER *hdr, BUFFER *cmd,
-  int *err_continue);
+  int *err_continue, int apply_deleted);
 int imap_has_flag (LIST* flag_list, const char* flag);
 
 /* auth.c */
