@@ -725,6 +725,64 @@ int imap_append_message (CONTEXT *ctx, MESSAGE *msg)
   return -1;
 }
 
+int imap_sync_messages_flags (CONTEXT* ctx, HEADER* h, int apply_deleted)
+{
+  IMAP_DATA* idata;
+  BUFFER sync_cmd;
+  int rc = 0;
+  int n;
+  int err_continue = M_NO;
+
+  idata = (IMAP_DATA*) ctx->data;
+
+  memset (&sync_cmd, 0, sizeof (sync_cmd));
+
+  /* Null HEADER* means copy tagged messages */
+  if (!h)
+  {
+    /* if any messages have attachments to delete, fall through to FETCH
+     * and APPEND. TODO: Copy what we can with COPY, fall through for the
+     * remainder. */
+    for (n = 0; n < ctx->msgcount; n++)
+    {
+      if (ctx->hdrs[n]->tagged && ctx->hdrs[n]->active &&
+	  ctx->hdrs[n]->changed)
+      {
+	rc = imap_sync_message (idata, ctx->hdrs[n], &sync_cmd, &err_continue, apply_deleted);
+	if (rc < 0)
+        {
+	  dprint (1, (debugfile, "imap_sync_messages_flags: could not sync\n"));
+	  goto out;
+	}
+      }
+    }
+  }
+  else
+  {
+    if (h->active && h->changed)
+    {
+      rc = imap_sync_message (idata, h, &sync_cmd, &err_continue, apply_deleted);
+      if (rc < 0)
+      {
+	dprint (1, (debugfile, "imap_sync_messages_flags: could not sync\n"));
+	goto out;
+      }
+    }
+  }
+
+  if (rc != 0)
+  {
+    imap_error ("imap_sync_messages_flags", idata->buf);
+    goto out;
+  }
+
+ out:
+  if (sync_cmd.data)
+    FREE (&sync_cmd.data);
+
+  return rc < 0 ? -1 : rc;
+}
+
 /* imap_copy_messages: use server COPY command to copy messages to another
  *   folder.
  *   Return codes:
@@ -734,14 +792,13 @@ int imap_append_message (CONTEXT *ctx, MESSAGE *msg)
 int imap_copy_messages (CONTEXT* ctx, HEADER* h, char* dest, int delete)
 {
   IMAP_DATA* idata;
-  BUFFER cmd, sync_cmd;
+  BUFFER cmd;
   char mbox[LONG_STRING];
   char mmbox[LONG_STRING];
   char prompt[LONG_STRING];
   int rc;
   int n;
   IMAP_MBOX mx;
-  int err_continue = M_NO;
   int triedcreate = 0;
 
   idata = (IMAP_DATA*) ctx->data;
@@ -774,35 +831,11 @@ int imap_copy_messages (CONTEXT* ctx, HEADER* h, char* dest, int delete)
   /* loop in case of TRYCREATE */
   do
   {
-    memset (&sync_cmd, 0, sizeof (sync_cmd));
     memset (&cmd, 0, sizeof (cmd));
 
     /* Null HEADER* means copy tagged messages */
     if (!h)
     {
-      /* if any messages have attachments to delete, fall through to FETCH
-       * and APPEND. TODO: Copy what we can with COPY, fall through for the
-       * remainder. */
-      for (n = 0; n < ctx->msgcount; n++)
-      {
-        if (ctx->hdrs[n]->tagged && ctx->hdrs[n]->attach_del)
-        {
-          dprint (3, (debugfile, "imap_copy_messages: Message contains attachments to be deleted\n"));
-          return 1;
-        }
-
-        if (ctx->hdrs[n]->tagged && ctx->hdrs[n]->active &&
-            ctx->hdrs[n]->changed)
-        {
-          rc = imap_sync_message (idata, ctx->hdrs[n], &sync_cmd, &err_continue);
-          if (rc < 0)
-          {
-            dprint (1, (debugfile, "imap_copy_messages: could not sync\n"));
-            goto out;
-          }
-        }
-      }
-
       rc = imap_exec_msgset (idata, "UID COPY", mmbox, M_TAG, 0, 0);
       if (!rc)
       {
@@ -823,15 +856,6 @@ int imap_copy_messages (CONTEXT* ctx, HEADER* h, char* dest, int delete)
       mutt_message (_("Copying message %d to %s..."), h->index+1, mbox);
       mutt_buffer_printf (&cmd, "UID COPY %u %s", HEADER_DATA (h)->uid, mmbox);
 
-      if (h->active && h->changed)
-      {
-        rc = imap_sync_message (idata, h, &sync_cmd, &err_continue);
-        if (rc < 0)
-        {
-          dprint (1, (debugfile, "imap_copy_messages: could not sync\n"));
-          goto out;
-        }
-      }
       if ((rc = imap_exec (idata, cmd.data, IMAP_CMD_QUEUE)) < 0)
       {
         dprint (1, (debugfile, "could not queue copy\n"));
@@ -897,8 +921,6 @@ int imap_copy_messages (CONTEXT* ctx, HEADER* h, char* dest, int delete)
  out:
   if (cmd.data)
     FREE (&cmd.data);
-  if (sync_cmd.data)
-    FREE (&sync_cmd.data);
   FREE (&mx.mbox);
 
   return rc < 0 ? -1 : rc;

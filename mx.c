@@ -343,6 +343,22 @@ int mx_is_pop (const char *p)
 }
 #endif
 
+int mx_get_sub_magic (int magic, const char *path)
+{
+#ifdef USE_IMAP
+  if (magic == M_IMAP)
+  {
+    if (mutt_strncmp (path, "gmail://", 8) == 0)
+    {
+      if (mutt_stristr (path, "All Mail"))
+        return M_SUB_IMAP_GMAIL_ALL_MAIL;
+      return M_SUB_IMAP_GMAIL;
+    }
+  }
+#endif
+  return M_SUB_DEFAULT;
+}
+
 int mx_get_magic (const char *path)
 {
   struct stat st;
@@ -465,6 +481,7 @@ static int mx_open_mailbox_append (CONTEXT *ctx, int flags)
   if(stat(ctx->path, &sb) == 0)
   {
     ctx->magic = mx_get_magic (ctx->path);
+    ctx->sub_magic = mx_get_sub_magic (ctx->magic, ctx->path);
     
     switch (ctx->magic)
     {
@@ -616,6 +633,7 @@ CONTEXT *mx_open_mailbox (const char *path, int flags, CONTEXT *pctx)
   }
 
   ctx->magic = mx_get_magic (path);
+  ctx->sub_magic = mx_get_sub_magic (ctx->magic, ctx->path);
   
   if(ctx->magic == 0)
     mutt_error (_("%s is not a mailbox."), path);
@@ -779,7 +797,7 @@ static int sync_mailbox (CONTEXT *ctx, int *index_hint)
 /* save changes and close mailbox */
 int mx_close_mailbox (CONTEXT *ctx, int *index_hint)
 {
-  int i, move_messages = 0, purge = 1, read_msgs = 0;
+  int i, move_messages = 0, purge = 1, read_msgs = 0, deleted_msgs = 0;
   int check;
   int isSpool = 0;
   CONTEXT f;
@@ -812,23 +830,25 @@ int mx_close_mailbox (CONTEXT *ctx, int *index_hint)
     if (!ctx->hdrs[i]->deleted && ctx->hdrs[i]->read 
         && !(ctx->hdrs[i]->flagged && option (OPTKEEPFLAGGED)))
       read_msgs++;
+    if (ctx->hdrs[i]->deleted)
+      deleted_msgs++;
   }
 
+  strfcpy (mbox, NONULL(Inbox), sizeof (mbox));
+  mutt_expand_path (mbox, sizeof (mbox));
+  
   if (read_msgs && quadoption (OPT_MOVE) != M_NO)
   {
     char *p;
+
+    isSpool = mutt_is_spool (ctx->path) && !mutt_is_spool (mbox);
 
     if ((p = mutt_find_hook (M_MBOXHOOK, ctx->path)))
     {
       isSpool = 1;
       strfcpy (mbox, p, sizeof (mbox));
     }
-    else
-    {
-      strfcpy (mbox, NONULL(Inbox), sizeof (mbox));
-      isSpool = mutt_is_spool (ctx->path) && !mutt_is_spool (mbox);
-    }
-
+  
     if (isSpool && *mbox)
     {
       mutt_expand_path (mbox, sizeof (mbox));
@@ -844,8 +864,12 @@ int mx_close_mailbox (CONTEXT *ctx, int *index_hint)
   /* 
    * There is no point in asking whether or not to purge if we are
    * just marking messages as "trash".
+   *
+   * asac: if .._IMAP_GMAIL we don't need to ask either as purged
+   * messages get saved in 'All Mail'
    */
-  if (ctx->deleted && !(ctx->magic == M_MAILDIR && option (OPTMAILDIRTRASH)))
+  if (ctx->deleted && ctx->sub_magic != M_SUB_IMAP_GMAIL &&
+      !(ctx->magic == M_MAILDIR && option (OPTMAILDIRTRASH)))
   {
     snprintf (buf, sizeof (buf), ctx->deleted == 1
 	     ? _("Purge %d deleted message?") : _("Purge %d deleted messages?"),
@@ -866,10 +890,43 @@ int mx_close_mailbox (CONTEXT *ctx, int *index_hint)
     }
   }
 
+#ifdef USE_IMAP
+  /* 
+   * asac: traditional imap didn't care about synching flags of
+   * deleted messages. In gmail's imap dialect, deleting a message
+   * will keep it available in "All Mail". Hence, for gmail subtype
+   * imap folders we explicitely sync the flags of deleted msgs.
+   *
+   * XXXasac: might make sense for all imap servers? - perf loss, but cleaner.
+   */
+  if (deleted_msgs && ctx->magic == M_IMAP  && ctx->sub_magic == M_SUB_IMAP_GMAIL)
+  {
+    /* tag messages for moving, and clear old tags, if any */
+    for (i = 0; i < ctx->msgcount; i++)
+    {
+      if (ctx->hdrs[i]->deleted)
+	ctx->hdrs[i]->tagged = 1;
+      else
+	ctx->hdrs[i]->tagged = 0;
+    }
+    
+    i = imap_sync_messages_flags (ctx, NULL, IMAP_MESSAGE_SYNC_DELETED_FLAG_DEFER);
+
+    if (i == 0) /* success */
+      mutt_clear_error ();
+    else if (i == -1) /* horrible error, bail */
+    {
+      ctx->closing=0;
+      return -1;
+    }
+  }
+    
+#endif    
+
   if (move_messages)
   {
     if (!ctx->quiet)
-      mutt_message (_("Moving read messages to %s..."), mbox);
+      mutt_message (_("Moving read and deleted messages to %s..."), mbox);
 
 #ifdef USE_IMAP
     /* try to use server-side copy first */
@@ -879,13 +936,21 @@ int mx_close_mailbox (CONTEXT *ctx, int *index_hint)
     {
       /* tag messages for moving, and clear old tags, if any */
       for (i = 0; i < ctx->msgcount; i++)
+      {
 	if (ctx->hdrs[i]->read && !ctx->hdrs[i]->deleted
             && !(ctx->hdrs[i]->flagged && option (OPTKEEPFLAGGED))) 
 	  ctx->hdrs[i]->tagged = 1;
 	else
 	  ctx->hdrs[i]->tagged = 0;
+      }
       
-      i = imap_copy_messages (ctx, NULL, mbox, 1);
+      i = imap_sync_messages_flags (ctx, NULL, IMAP_MESSAGE_SYNC_DELETED_FLAG_APPLY);
+
+      if (i == 0) /* success */
+      {
+	mutt_clear_error ();
+	i = imap_copy_messages (ctx, NULL, mbox, 1);
+      }
     }
     
     if (i == 0) /* success */

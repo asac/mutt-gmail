@@ -31,6 +31,11 @@ typedef struct
   char* mbox;
 } IMAP_MBOX;
 
+enum {
+  IMAP_MESSAGE_SYNC_DELETED_FLAG_DEFER=0,
+  IMAP_MESSAGE_SYNC_DELETED_FLAG_APPLY=1
+};
+
 /* imap.c */
 int imap_access (const char*, int);
 int imap_check_mailbox (CONTEXT *ctx, int *index_hint, int force);
@@ -58,6 +63,7 @@ int imap_mailbox_rename (const char* mailbox);
 int imap_append_message (CONTEXT* ctx, MESSAGE* msg);
 int imap_copy_messages (CONTEXT* ctx, HEADER* h, char* dest, int delete);
 int imap_fetch_message (MESSAGE* msg, CONTEXT* ctx, int msgno);
+int imap_sync_messages_flags (CONTEXT* ctx, HEADER* h, int apply_deleted);
 
 /* socket.c */
 void imap_logout_all (void);

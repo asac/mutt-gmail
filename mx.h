@@ -38,6 +38,13 @@ enum
   M_POP
 };
 
+enum
+{
+  M_SUB_DEFAULT = 1,
+  M_SUB_IMAP_GMAIL,
+  M_SUB_IMAP_GMAIL_ALL_MAIL
+};
+
 WHERE short DefaultMagic INITVAL (M_MBOX);
 
 #define MMDF_SEP "\001\001\001\001\n"

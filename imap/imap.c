@@ -790,8 +790,16 @@ int imap_open_mailbox_append (CONTEXT *ctx)
     return -1;
   }
 
-  ctx->magic = M_IMAP;
   ctx->data = idata;
+  ctx->magic = M_IMAP;
+  if (mx.account.type ==  M_ACCT_TYPE_IMAP_GMAIL)
+  {
+    if (mutt_stristr (mx.mbox, "All Mail"))
+      ctx->sub_magic = M_SUB_IMAP_GMAIL_ALL_MAIL;
+    ctx->sub_magic = M_SUB_IMAP_GMAIL;
+  }
+  else
+    ctx->sub_magic = M_SUB_DEFAULT;
 
   imap_fix_path (idata, mx.mbox, mailbox, sizeof (mailbox));
   if (!*mailbox)
@@ -1040,12 +1048,10 @@ static int compare_flags (HEADER* h)
 
 /* Update the IMAP server to reflect the flags a single message.  */
 int imap_sync_message (IMAP_DATA *idata, HEADER *hdr, BUFFER *cmd,
-		       int *err_continue)
+		       int *err_continue, int apply_deleted)
 {
   char flags[LONG_STRING];
   char uid[11];
-
-  hdr->changed = 0;
 
   if (!compare_flags (hdr))
   {
@@ -1068,8 +1074,9 @@ int imap_sync_message (IMAP_DATA *idata, HEADER *hdr, BUFFER *cmd,
 		 "\\Flagged ", flags, sizeof (flags));
   imap_set_flag (idata, M_ACL_WRITE, hdr->replied,
 		 "\\Answered ", flags, sizeof (flags));
-  imap_set_flag (idata, M_ACL_DELETE, hdr->deleted,
-		 "\\Deleted ", flags, sizeof (flags));
+  if (apply_deleted)
+    imap_set_flag (idata, M_ACL_DELETE, hdr->deleted,
+		   "\\Deleted ", flags, sizeof (flags));
 
   /* now make sure we don't lose custom tags */
   if (mutt_bit_isset (idata->ctx->rights, M_ACL_WRITE))
@@ -1085,7 +1092,8 @@ int imap_sync_message (IMAP_DATA *idata, HEADER *hdr, BUFFER *cmd,
     imap_set_flag (idata, M_ACL_WRITE, 1, "Old ", flags, sizeof (flags));
     imap_set_flag (idata, M_ACL_WRITE, 1, "\\Flagged ", flags, sizeof (flags));
     imap_set_flag (idata, M_ACL_WRITE, 1, "\\Answered ", flags, sizeof (flags));
-    imap_set_flag (idata, M_ACL_DELETE, 1, "\\Deleted ", flags, sizeof (flags));
+    if (apply_deleted)
+      imap_set_flag (idata, M_ACL_DELETE, 1, "\\Deleted ", flags, sizeof (flags));
 
     mutt_remove_trailing_ws (flags);
 
@@ -1111,7 +1119,10 @@ int imap_sync_message (IMAP_DATA *idata, HEADER *hdr, BUFFER *cmd,
   }
 
   hdr->active = 1;
-  idata->ctx->changed--;
+  hdr->changed = (hdr->deleted != ((IMAP_HEADER_DATA*)hdr->data)->deleted);
+
+  if (!hdr->changed)
+    idata->ctx->changed--;
 
   return 0;
 }
