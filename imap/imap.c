@@ -570,6 +570,22 @@ int imap_open_mailbox (CONTEXT* ctx)
     return -1;
   }
 
+  /* first, if there is a All Mail style mailbox, let's get this done now */
+  /* note: we assume submagic is set, which happens in mx.c for this
+     "normal open_mailbox" code path and in this file for the _append case
+     further below */
+  if (ctx->sub_magic == M_SUB_IMAP_GMAIL) {
+    ciss_url_t url;
+    mutt_account_tourl(&(mx.account), &url);
+    url.path = "[Gmail]/All Mail";
+
+    ctx->all_mail_path = malloc (4096 * sizeof (char));
+    url_ciss_tostring (&url, ctx->all_mail_path, 4096, 0);
+
+    dprint (1, (debugfile, "imap_open_mailbox: opening helper mx for all_mail_path = %s\n", ctx->all_mail_path));
+    ctx->all_mail_ctx = mx_open_mailbox (ctx->all_mail_path, M_READONLY | M_QUIET, NULL);
+  }
+
   /* we require a connection which isn't currently in IMAP_SELECTED state */
   if (!(idata = imap_conn_find (&(mx.account), M_IMAP_CONN_NOSELECT)))
     goto fail_noidata;
@@ -1367,6 +1383,14 @@ int imap_close_mailbox (CONTEXT* ctx)
     /* mailbox may not have fully loaded */
     if (ctx->hdrs[i] && ctx->hdrs[i]->data)
       imap_free_header_data (&(ctx->hdrs[i]->data));
+
+  if (ctx->all_mail_ctx) {
+    mx_close_mailbox (ctx->all_mail_ctx, NULL);
+    free (ctx->all_mail_ctx);
+    free (ctx->all_mail_path);
+    ctx->all_mail_ctx = NULL;
+    ctx->all_mail_path = NULL;
+  }
 
   for (i = 0; i < IMAP_CACHE_LEN; i++)
   {
