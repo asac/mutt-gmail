@@ -854,7 +854,9 @@ enum
   RIGHTSMAX
 };
 
-typedef struct _context
+typedef struct _context CONTEXT;
+
+struct _context
 {
   char *path;
   FILE *fp;
@@ -897,7 +899,11 @@ typedef struct _context
   /* driver hooks */
   void *data;			/* driver specific data */
   int (*mx_close)(struct _context *);
-} CONTEXT;
+
+  /* gmail style All Mail folder */
+  CONTEXT *all_mail_ctx;
+  char *all_mail_path;
+};
 
 typedef struct
 {
