@@ -796,7 +796,8 @@ int imap_open_mailbox_append (CONTEXT *ctx)
   {
     if (mutt_stristr (mx.mbox, "All Mail"))
       ctx->sub_magic = M_SUB_IMAP_GMAIL_ALL_MAIL;
-    ctx->sub_magic = M_SUB_IMAP_GMAIL;
+    else
+      ctx->sub_magic = M_SUB_IMAP_GMAIL;
   }
   else
     ctx->sub_magic = M_SUB_DEFAULT;
