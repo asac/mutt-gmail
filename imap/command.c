@@ -66,6 +66,8 @@ static const char * const Capabilities[] = {
   "LOGINDISABLED",
   "IDLE",
   "SASL-IR",
+  "XLIST",
+  "X-GM-EXT-1",
 
   NULL
 };
