@@ -114,6 +114,9 @@ enum
   LOGINDISABLED,		/*           LOGINDISABLED */
   IDLE,                         /* RFC 2177: IDLE */
   SASL_IR,                      /* SASL initial response draft */
+  XLIST,                        /* google mail extension: XLIST */
+  X_GM_EXT_1,                   /* google mail extensions 1 - see:
+				 * https://developers.google.com/google-apps/gmail/imap_extensions */
 
   CAPMAX
 };
