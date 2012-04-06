@@ -243,7 +243,7 @@ int imap_read_headers (IMAP_DATA* idata, int msgbegin, int msgend)
       char *cmd;
 
       fetchlast = msgend + 1;
-      safe_asprintf (&cmd, "FETCH %d:%d (UID FLAGS INTERNALDATE RFC822.SIZE X-GM-MSGID X-GM-THRID %s)",
+      safe_asprintf (&cmd, "FETCH %d:%d (UID FLAGS INTERNALDATE RFC822.SIZE X-GM-MSGID X-GM-THRID X-GM-LABELS %s)",
                      msgno + 1, fetchlast, hdrreq);
       imap_cmd_start (idata, cmd);
       FREE (&cmd);
@@ -1045,6 +1045,7 @@ void imap_free_header_data (void** data)
 {
   /* this should be safe even if the list wasn't used */
   mutt_free_list (&(((IMAP_HEADER_DATA*) *data)->keywords));
+  mutt_free_list (&(((IMAP_HEADER_DATA*) *data)->x_gm_labels));
 
   FREE (data);		/* __FREE_CHECKED__ */
 }
@@ -1225,6 +1226,52 @@ static int msg_parse_fetch (IMAP_HEADER *h, char *s)
       *ptmp = 0;
       h->data->x_gm_thrid = atol (tmp);
     }
+    else if (ascii_strncasecmp ("X-GM-LABELS", s, 11) == 0)
+    {
+      int bc = 0;    
+      int qt = 0;
+      char *c = NULL;
+
+      s += 11;
+      SKIPWS (s);
+
+      if (*s == '(') {
+	bc++;
+	s++;
+      }
+
+      SKIPWS (s);
+      c = s;
+      while (bc > 0 && *s && *s != ')') {
+	char tmp;
+
+	/* quoted? skip the quote and remember */
+	if (!qt && *s == '"') {
+	  qt = 1;
+	  s++;
+	  c=s;
+	  continue;
+	}
+
+	/* quoted has quote as delim; otherwise isspace */
+	if ((!qt && isspace (*s)) || (qt && *s == '"')) {
+	  char *__c;
+	  tmp = *s;
+	  *s = '\0';
+	  __c = strdup (c);
+	  mutt_add_list (h->data->x_gm_labels, __c);
+	  dprint (5, (debugfile, "X-GM-LABEL: '%s'\n", __c));
+	  *s = tmp;
+	  s++;
+	  SKIPWS (s);
+	  c=s;
+	  qt=0;
+	  continue;
+	}
+	s++;
+      }
+    }
+
     else if (!ascii_strncasecmp ("BODY", s, 4) ||
       !ascii_strncasecmp ("RFC822.HEADER", s, 13))
     {
