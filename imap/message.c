@@ -243,7 +243,7 @@ int imap_read_headers (IMAP_DATA* idata, int msgbegin, int msgend)
       char *cmd;
 
       fetchlast = msgend + 1;
-      safe_asprintf (&cmd, "FETCH %d:%d (UID FLAGS INTERNALDATE RFC822.SIZE %s)",
+      safe_asprintf (&cmd, "FETCH %d:%d (UID FLAGS INTERNALDATE RFC822.SIZE X-GM-MSGID %s)",
                      msgno + 1, fetchlast, hdrreq);
       imap_cmd_start (idata, cmd);
       FREE (&cmd);
@@ -1204,6 +1204,16 @@ static int msg_parse_fetch (IMAP_HEADER *h, char *s)
         *ptmp++ = *s++;
       *ptmp = 0;
       h->content_length = atoi (tmp);
+    }
+    else if (ascii_strncasecmp ("X-GM-MSGID", s, 10) == 0)
+    {
+      s += 10;
+      SKIPWS (s);
+      ptmp = tmp;
+      while (isdigit ((unsigned char) *s))
+        *ptmp++ = *s++;
+      *ptmp = 0;
+      h->data->x_gm_msgid = atol (tmp);
     }
     else if (!ascii_strncasecmp ("BODY", s, 4) ||
       !ascii_strncasecmp ("RFC822.HEADER", s, 13))
