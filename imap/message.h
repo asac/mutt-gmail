@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 1996-9 Brandon Long <blong@fiction.net>
  * Copyright (C) 1999-2000,2005 Brendan Cully <brendan@kublai.com>
+ * Copyright (C) 2012 Alexander Sack <asac@jwsdot.com>
  * 
  *     This program is free software; you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -38,6 +39,11 @@ typedef struct imap_header_data
 
   unsigned int uid;	/* 32-bit Message UID */
   LIST *keywords;
+
+  /* gmail extension (ask asac) */
+  long x_gm_msgid;
+  long x_gm_thrid;
+  LIST *x_gm_labels;
 } IMAP_HEADER_DATA;
 
 typedef struct
